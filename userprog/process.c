@@ -55,26 +55,18 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-
-  //------Ignore this------
-  // added code.
-  // Converting from the full command to only pass the command name.
-  //file_name = strtok_r(file_name," ",&file_name);
-  // ------ stop ignoring now ------
-
-  
-
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-  //added code
+  //-----Added code-----
+  // Converts the full command to only pass the file/command name.
   file_name = strtok_r(file_name," ",&file_name);
+  //This is small debugging test that just checks that the file name is being processed correctly 
   printf("Test: File name = %s\n", file_name);
-
+  //-----End of added code-----
 
   success = load (file_name, &if_.eip, &if_.esp);
   
@@ -134,10 +126,14 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-	//New code
-	// adding termination message, This is NOT complete.
-	printf("%s: exit(%d)\n", cur->name, cur->exit_code);
 
+	//-----Added code-----
+	// Creates the termination message
+	// It does this by pulling the current file name from the thread structure
+	// as well as the exit code (see thread.h for the code that does this),
+	// then prints the following message.
+	printf("%s: exit(%d)\n", cur->name, cur->exit_code);
+	//-----End of added code-----
 }
 
 /* Sets up the CPU for running user code in the current
