@@ -55,11 +55,26 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+
+  //------Ignore this------
+  // added code.
+  // Converting from the full command to only pass the command name.
+  //file_name = strtok_r(file_name," ",&file_name);
+  // ------ stop ignoring now ------
+
+  
+
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  //added code
+  file_name = strtok_r(file_name," ",&file_name);
+  printf("Test: File name = %s\n", file_name);
+
 
   success = load (file_name, &if_.eip, &if_.esp);
   
@@ -119,6 +134,10 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+	//New code
+	// adding termination message, This is NOT complete.
+	printf("%s: exit(%d)\n", cur->name, cur->exit_code);
+
 }
 
 /* Sets up the CPU for running user code in the current
@@ -443,7 +462,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12; // changed code, added -12 
       } else
         palloc_free_page (kpage);
     }

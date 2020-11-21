@@ -96,6 +96,12 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    
+    //added code
+    // Stores the exit code
+    int8_t exit_code;
+
+
 #endif
 
     /* Owned by thread.c. */
