@@ -64,8 +64,9 @@ start_process (void *file_name_)
   //-----Added code-----
   // Converts the full command to only pass the file/command name.
   file_name = strtok_r(file_name," ",&file_name);
+  
   //This is small debugging test that just checks that the file name is being processed correctly 
-  printf("Test: File name = %s\n", file_name);
+  //printf("Test: File name = %s\n", file_name);
   //-----End of added code-----
 
   success = load (file_name, &if_.eip, &if_.esp);
