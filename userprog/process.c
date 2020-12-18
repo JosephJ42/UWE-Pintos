@@ -37,18 +37,10 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
-  /*--SELF ADDED CODE--*/
-  char *save_ptr;
-  char *real_name;
-  
-  real_name = strtok_r(file_name, " ", &save_ptr);
-
-  /*END OF SELF ADDED CODE*/
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -68,6 +60,17 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  //-----Added code-----
+  // Converts the full command to only pass the file/command name.
+  char *save_ptr;
+  char *real_name;
+  
+  real_name = strtok_r(file_name, " ", &save_ptr);
+  
+  //This is small debugging test that just checks that the file name is being processed correctly 
+  //printf("Test: File name = %s\n", file_name);
+  //-----End of added code-----
 
   success = load (file_name, &if_.eip, &if_.esp);
   
@@ -133,7 +136,7 @@ process_exit (void)
 	// It does this by pulling the current file name from the thread structure
 	// as well as the exit code (see thread.h for the code that does this),
 	// then prints the following message.
-    printf("%s: exit(%d)\n", cur->name, cur->exit_code);
+	printf("%s: exit(%d)\n", cur->name, cur->exit_code);
 	//-----End of added code-----
 }
 
@@ -227,7 +230,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *real_name, void (**eip) (void), void **esp) 
+load (const char *real_name, void (**eip) (void), void **esp) // made edit, changes "file_name" to "real_name"
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -235,20 +238,25 @@ load (const char *real_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-   
-  /*Extracting Args*/
-  char filename_copy[100];
-  strlcpy(filename_copy, real_name, 100);
-  char *argv[255];
-  int argc;
-  char *save_ptr;
-  argv[0] = strtok_r(real_name, " ", &save_ptr);
-  char *token;
-  argc = 1;
-  while((token = strtok_r(NULL, " ", &save_ptr))!=NULL){
+
+  //-----Added code-----
+  //Extracting Args
+  //This extracts the number of arguments passed.
+   char filename_copy[100];
+   strlcpy(filename_copy, real_name, 100);
+   char *argv[255];
+   int argc;
+   char *save_ptr;
+   argv[0] = strtok_r(real_name, " ", &save_ptr);
+   char *token;
+   argc = 1;
+
+   while((token = strtok_r(NULL, " ", &save_ptr))!=NULL){
     argv[argc++] = token;
-  } 
-  
+   }
+  //-----End of added code-----
+
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -256,11 +264,11 @@ load (const char *real_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (real_name);
+  file = filesys_open (real_name);// made edit, changes "file_name" to "real_name"
 
   if (file == NULL) 
     {
-	printf ("load: %s: open failed\n", real_name);
+	printf ("load: %s: open failed\n", real_name); // made edit, changes "file_name" to "real_name"
       goto done; 
     }
 
@@ -273,7 +281,7 @@ load (const char *real_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", real_name);
+      printf ("load: %s: error loading executable\n", real_name); // made edit, changes "file_name" to "real_name"
       goto done; 
     }
 
@@ -338,10 +346,16 @@ load (const char *real_name, void (**eip) (void), void **esp)
 
   /* Set up stack. */
   //if (!setup_stack (esp))
-  printf("\n argv _load :%d", argc);
-  if(!setup_stack(esp,argv,argc)){
-    goto done;
-  }  
+   //-----Added code-----
+   // 
+   printf("\n argv_load:%d", argc);
+   if(!setup_stack(esp,argv,argc)){
+   goto done;
+   }
+
+   //-----End of added code-----
+
+    //goto done;
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -465,7 +479,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp,char **argv,int argc) 
+setup_stack (void **esp, char **argv, int argc) // added the following paramaters, char **argv, int argc
 {
   uint8_t *kpage;
   bool success = false;
@@ -475,36 +489,43 @@ setup_stack (void **esp,char **argv,int argc)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE;
-        int i = argc;
-	uint32_t * arr[argc];
-	while(--i >= 0){
-	  *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
+        *esp = PHYS_BASE; // changed code, added -12 
+      
+//-----added code---------
+ int i = argc;
+    uint32_t * arr[argc];
+    while(--i >= 0){
+      *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
           printf("argv[%d]: %s\n", i, argv[i]);
-	  arr[i] = (uint32_t *)*esp;
-	  memcpy(*esp, argv[i], strlen(argv[i])+1);
-	}
+      arr[i] = (uint32_t *)*esp;
+      memcpy(*esp, argv[i], strlen(argv[i])+1);
+    }
 
-	*esp = *esp - 4;
-	(*(int *)(*esp)) = 0;
-	i = argc;
+    *esp = *esp - 4;
+    (*(int *)(*esp)) = 0;
+    i = argc;
 
-	while(--i >= 0){
-	  *esp = *esp - 4;
-	  (*(uint32_t **)(*esp)) = arr[i];
-	}
+    while(--i >= 0){
+      *esp = *esp - 4;
+      (*(uint32_t **)(*esp)) = arr[i];
+    }
 
-	*esp = *esp - 4;
-	(*(uintptr_t **)(*esp)) = (*esp+4);
-	*esp = *esp - 4;
-	*(int *)(*esp) = argc;
-	*esp = *esp - 4;
-	(*(int *)(*esp)) = 0;
+    *esp = *esp - 4;
+    (*(uintptr_t **)(*esp)) = (*esp+4);
+    *esp = *esp - 4;
+    *(int *)(*esp) = argc;
+    *esp = *esp - 4;
+    (*(int *)(*esp)) = 0;
+//----end of added code------
 
-      } else
+	} else
         palloc_free_page (kpage);
     }
-    hex_dump((uintptr_t)PHYS_BASE-120, PHYS_BASE-120,120,true);
+
+//-----added code-------
+hex_dump((uintptr_t)PHYS_BASE-120, PHYS_BASE-120,120,true);
+//-----end of added code------
+
   return success;
 }
 
