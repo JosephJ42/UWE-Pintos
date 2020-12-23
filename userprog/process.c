@@ -30,6 +30,29 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+   
+  //-----Added code-----
+  // Converts the full command to only pass the file/command name.
+  char *save_ptr;
+  char *real_name;
+  
+  char file_name_copy[100];
+  strlcpy(file_name_copy, file_name, 100);
+ 
+  //printf ("file name = %s \n", file_name);
+  //printf ("copy of file name = %s \n", file_name_copy);
+
+  real_name = strtok_r(file_name_copy, " ", &save_ptr);
+
+  //file_name = file_name_copy;
+
+ //printf ("real name = %s \n", real_name);
+  //printf ("file name now = %s \n", file_name);
+   //printf ("copy of file name now = %s \n", file_name_copy);
+
+  //This is small debugging test that just checks that the file name is being processed correctly 
+  //printf("Test: File name = %s\n", file_name);
+  //-----End of added code-----
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -39,7 +62,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy); // change "file_name" to "real_name"
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -61,16 +84,6 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-  //-----Added code-----
-  // Converts the full command to only pass the file/command name.
-  char *save_ptr;
-  char *real_name;
-  
-  real_name = strtok_r(file_name, " ", &save_ptr);
-  
-  //This is small debugging test that just checks that the file name is being processed correctly 
-  //printf("Test: File name = %s\n", file_name);
-  //-----End of added code-----
 
   success = load (file_name, &if_.eip, &if_.esp);
   
@@ -219,7 +232,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char **argv, int argc);
+static bool setup_stack (void **esp, char **argv, int argc); //
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -230,7 +243,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *real_name, void (**eip) (void), void **esp) // made edit, changes "file_name" to "real_name"
+load (const char *file_name, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -242,18 +255,26 @@ load (const char *real_name, void (**eip) (void), void **esp) // made edit, chan
   //-----Added code-----
   //Extracting Args
   //This extracts the number of arguments passed.
-   char filename_copy[100];
-   strlcpy(filename_copy, real_name, 100);
+   char file_name_copy[100];
+   strlcpy(file_name_copy, file_name, 100);
    char *argv[255];
-   int argc;
+   int argc; 
    char *save_ptr;
-   argv[0] = strtok_r(real_name, " ", &save_ptr);
+
+   char *real_name;
+
+   argv[0] = strtok_r(file_name_copy," ", &save_ptr);
+
+   real_name= argv[0];
+
    char *token;
    argc = 1;
-
-   while((token = strtok_r(NULL, " ", &save_ptr))!=NULL){
-    argv[argc++] = token;
-   }
+   while((token = strtok_r(NULL," ", &save_ptr))!=NULL)
+   {
+   	argv[argc++] = token;
+        //printf ("hello this has been called properly \n");
+   } 
+  //printf ("token = %s \n", argv[1]);
   //-----End of added code-----
 
 
@@ -348,10 +369,9 @@ load (const char *real_name, void (**eip) (void), void **esp) // made edit, chan
   //if (!setup_stack (esp))
    //-----Added code-----
    // 
-   printf("\n argv_load:%d", argc);
-   if(!setup_stack(esp,argv,argc)){
+   printf("argv_load:%d \n", argc);
+   if(!setup_stack(esp,argv,argc))
    goto done;
-   }
 
    //-----End of added code-----
 
@@ -489,10 +509,10 @@ setup_stack (void **esp, char **argv, int argc) // added the following paramater
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE; // changed code, added -12 
-      
+        *esp = PHYS_BASE;
 //-----added code---------
- int i = argc;
+    int i = argc;
+
     uint32_t * arr[argc];
     while(--i >= 0){
       *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
@@ -522,8 +542,9 @@ setup_stack (void **esp, char **argv, int argc) // added the following paramater
         palloc_free_page (kpage);
     }
 
+  hex_dump(PHYS_BASE, *esp, PHYS_BASE-(*esp),true);
 //-----added code-------
-hex_dump((uintptr_t)PHYS_BASE-120, PHYS_BASE-120,120,true);
+//hex_dump((uintptr_t)PHYS_BASE-120, PHYS_BASE-120,120,true);
 //-----end of added code------
 
   return success;
