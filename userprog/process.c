@@ -36,22 +36,14 @@ process_execute (const char *file_name)
   char *save_ptr;
   char *real_name;
   
+  // creates a copy of the file_name
+  // This is done due to "strtok" destroying the orginal passed string
   char file_name_copy[100];
   strlcpy(file_name_copy, file_name, 100);
- 
-  //printf ("file name = %s \n", file_name);
-  //printf ("copy of file name = %s \n", file_name_copy);
 
+  // strtok_r is used to seperate out the file/command name
   real_name = strtok_r(file_name_copy, " ", &save_ptr);
 
-  //file_name = file_name_copy;
-
- //printf ("real name = %s \n", real_name);
-  //printf ("file name now = %s \n", file_name);
-   //printf ("copy of file name now = %s \n", file_name_copy);
-
-  //This is small debugging test that just checks that the file name is being processed correctly 
-  //printf("Test: File name = %s\n", file_name);
   //-----End of added code-----
 
   /* Make a copy of FILE_NAME.
@@ -253,30 +245,33 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   //-----Added code-----
-  //Extracting Args
-  //This extracts the number of arguments passed.
+  //Extracts arguments from the user entered string
+
+  //Creates a copy of the file name to be processed
    char file_name_copy[100];
    strlcpy(file_name_copy, file_name, 100);
+   
+  //Begins by extracting the file/command name from the entered string 
    char *argv[255];
    int argc; 
    char *save_ptr;
-
    char *real_name;
 
    argv[0] = strtok_r(file_name_copy," ", &save_ptr);
 
+  //sets the first argument as the file/command name 
    real_name= argv[0];
-
+  
+  // the following, then extracts each following argument
+  // after the file/command name, and places them into the argument vector array
+  // in an iterative process, until a NULL (no more arguments) is present
    char *token;
    argc = 1;
    while((token = strtok_r(NULL," ", &save_ptr))!=NULL)
    {
    	argv[argc++] = token;
-        //printf ("hello this has been called properly \n");
    } 
-  //printf ("token = %s \n", argv[1]);
   //-----End of added code-----
-
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -366,16 +361,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  //if (!setup_stack (esp))
    //-----Added code-----
-   // 
+   // This sets up the stack by passing
+   // each argument is the argv array into the stack
+   // starting with the file/command name and so on. 
    printf("argv_load:%d \n", argc);
    if(!setup_stack(esp,argv,argc))
    goto done;
 
    //-----End of added code-----
-
-    //goto done;
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -510,7 +504,9 @@ setup_stack (void **esp, char **argv, int argc) // added the following paramater
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-//-----added code---------
+
+//-----Added code---------
+//
     int i = argc;
 
     uint32_t * arr[argc];
@@ -536,7 +532,7 @@ setup_stack (void **esp, char **argv, int argc) // added the following paramater
     *(int *)(*esp) = argc;
     *esp = *esp - 4;
     (*(int *)(*esp)) = 0;
-//----end of added code------
+//-----End of added code------
 
 	} else
         palloc_free_page (kpage);
