@@ -2,9 +2,9 @@
 #include <syscall.h>
 
 int
-main (void)
+main (int status)
 {
-    printf("Hello, World\n");
-    
+    //printf("Hello, World\n");
+    exit(status);
     return EXIT_SUCCESS;
 }
