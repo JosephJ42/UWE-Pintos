@@ -2,9 +2,10 @@
 #include <syscall.h>
 
 int
-main (int status)
+main (const char *file)
 {
     //printf("Hello, World\n");
-    exit(status);
+	
+	exec(file);
     return EXIT_SUCCESS;
 }
