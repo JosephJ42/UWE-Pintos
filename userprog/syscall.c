@@ -3,12 +3,16 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+//added includes
+#include "threads/synch.h"
 
 typedef int pid_t;
 
 void halt(void);
 void exit(int);
-pid_t exec(const char *cmdline);
+pid_t exec(const char *cmd_line);
+//int write(int fd, const void *buffer, unsigned size)
+
 
 static void syscall_handler (struct intr_frame *);
 
@@ -25,7 +29,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   printf ("system call!\n");
   
   int system_call_number = *((int*)f->esp); // gets the system call code
-  int parameter = *((int*)f->esp+4);
+  int parameter = *((int*)f->esp+4); // gets the system parameters
 
   printf("system_call_handler() - %d! \n", system_call_number);
   printf("perameter - %d! \n", parameter);
@@ -54,9 +58,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_EXEC:
 	printf("SYSTEM CALL: Exec is being executed \n");
         
-	//exec(const char *cmdline);
-
-
+	const char *file_name;
+	char cmd_line = file_name;
+        printf("%c \n",cmd_line);
+	
+	exec(cmd_line);
 	break;
 	
 	case SYS_WAIT:
@@ -81,10 +87,24 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
+	/*
+	int fd =*(int *)(f->esp + 4);
+	void *buffer = *(char**) (f->esp + 8);
+	unsigned size = *(unsigned *)(f->esp + 12);
+	
+	f->eax = read(fd, buffer, size);
+	*/
 	break;
 
 	case SYS_WRITE:
 	printf("SYSTEM CALL: Write is being executed \n");
+	/*
+	int fd =*(int *)(f->esp + 4);
+	void *buffer = *(char**) (f->esp + 8);
+	unsigned size = *(unsigned *)(f->esp + 12);
+	
+	f->eax = write(fd, buffer, size);
+	*/
 	break;
 
 	case SYS_SEEK:
@@ -111,23 +131,66 @@ void halt(void){
 shutdown_power_off();
 }
 
+//Terminates the current user program
 void exit(int status){
 
-printf("%s: exit(%d)\n", thread_current()->name, status);	
-
+//returns the kernal status
+printf("%s: exit(%d)\n", thread_current()->name, status);
+	
+//then exits the thread
 thread_exit();	
 }
-/*
+
+//need to fix
 pid_t exec(const char *cmd_line){
 
+int pid;
 
-//return pid;
+if (cmd_line == NULL){ // if the program cannot load or run 
+    return -1;
 }
 
+pid = process_execute(cmd_line);
+
+return pid;
+}
+/*
 int wait (pid_t pid){
 
-}*/
+}
 
 
+bool create(const char *file, unsigned initial_size){
+if (){
+return true;
+}
+
+return false;
+}
+
+bool remove(const char *file){
+
+}
+
+int open(const char *file){
+}
+
+int filesize(int fd){
+}
+
+int read(int fd, const void *buffer, unsigned size){
+}
+
+int write(int fd, const void *buffer, unsigned size){
+
+if(fd==STDOUT_FILENO) {
+putbuf((const char*)buffer, (unsigned ) size);
+}
+else {
+printf("sys_write does not support fd output\n");
+}
+
+}
+*/
 
 
