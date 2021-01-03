@@ -6,6 +6,7 @@
 //added includes
 #include "threads/synch.h"
 #include "filesys/file.h"
+#include "devices/input.h"
 
 typedef int pid_t;
 
@@ -91,14 +92,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_FILESIZE:
 	printf("SYSTEM CALL: File size is being executed \n");
+	int fd_filesize = *((int*)f->esp + 1);
+	f->eax = filesize(fd_filesize);
 	break;
 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
 	/*
-	int fd =*(int *)(f->esp + 4);
-	void *buffer = *(char**) (f->esp + 8);
-	unsigned size = *(unsigned *)(f->esp + 12);
+	int fd = *((int*)f->esp + 1);
+	void* buffer = (void*)(*((int*)f->esp + 2));
+	unsigned size = *((unsigned*)f->esp + 3);
 	
 	f->eax = read(fd, buffer, size);
 	*/
@@ -184,13 +187,23 @@ bool remove(const char *file){
 
 int open(const char *file){
 }
+*/
 
-int filesize(int fd){
+int filesize(int fd_filesize){
+
+void lock_acquire (struct lock *);
+file_length (fd_filesize);
+void lock_release (struct lock *);
+ 
 }
 
+/*
 int read(int fd, const void *buffer, unsigned size){
+if
+input_getc();
 }
 */
+
 int write(int fd, const void *buffer, unsigned size){
 // writes to the console
 if (fd ==1){
