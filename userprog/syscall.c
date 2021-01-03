@@ -5,8 +5,14 @@
 #include "threads/thread.h"
 //added includes
 #include "threads/synch.h"
+#include "filesys/file.h"
 
 typedef int pid_t;
+
+struct lock;
+void lock_init(struct lock *);
+
+
 
 void halt(void);
 void exit(int);
@@ -38,7 +44,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	// Halts Pintos by calling the halt function, seen below
 	case SYS_HALT:
 	printf("SYSTEM CALL: Halt is being executed \n");
-	halt();
+	shutdown_power_off();
 	break;
 
 	/* Terminates the current user program, whilst returning the kernal status */
@@ -50,8 +56,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	struct thread* cur = thread_current();
 
  	cur->exit_code = status; // or exit_code.
- 	
-	exit(status);
+	
+	thread_exit();
 
 	break;
    
@@ -62,7 +68,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	char cmd_line = file_name;
         printf("%c \n",cmd_line);
 	
-	exec(cmd_line);
+	//exec(cmd_line);
 	break;
 	
 	case SYS_WAIT:
@@ -71,6 +77,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
+        
+	
 	break;
 
 	case SYS_REMOVE:
@@ -98,13 +106,14 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_WRITE:
 	printf("SYSTEM CALL: Write is being executed \n");
-	/*
-	int fd =*(int *)(f->esp + 4);
-	void *buffer = *(char**) (f->esp + 8);
-	unsigned size = *(unsigned *)(f->esp + 12);
 	
-	f->eax = write(fd, buffer, size);
-	*/
+	int fd = *((int*)f->esp + 1);
+	void* buffer = (void*)(*((int*)f->esp + 2));
+	unsigned size = *((unsigned*)f->esp + 3);
+		
+	
+	f->eax = write(fd,buffer,size);
+	
 	break;
 
 	case SYS_SEEK:
@@ -125,7 +134,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	}
 
 }
-
+/*
 // halt function terminates Pintos
 void halt(void){
 shutdown_power_off();
@@ -140,7 +149,8 @@ printf("%s: exit(%d)\n", thread_current()->name, status);
 //then exits the thread
 thread_exit();	
 }
-
+*/
+/*
 //need to fix
 pid_t exec(const char *cmd_line){
 
@@ -154,7 +164,7 @@ pid = process_execute(cmd_line);
 
 return pid;
 }
-/*
+
 int wait (pid_t pid){
 
 }
@@ -180,17 +190,23 @@ int filesize(int fd){
 
 int read(int fd, const void *buffer, unsigned size){
 }
-
-int write(int fd, const void *buffer, unsigned size){
-
-if(fd==STDOUT_FILENO) {
-putbuf((const char*)buffer, (unsigned ) size);
-}
-else {
-printf("sys_write does not support fd output\n");
-}
-
-}
 */
+int write(int fd, const void *buffer, unsigned size){
+// writes to the console
+if (fd ==1){
+putbuf((const char*)buffer, (unsigned ) size);
+printf("\n");
+}
+// writes to the given file (needs more work)
+else{
+void lock_acquire (struct lock *);
+file_write(/*->file*/fd,buffer,size);
+void lock_release (struct lock *);
+}
+
+}
+
+
+
 
 
