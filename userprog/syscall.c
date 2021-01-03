@@ -16,11 +16,20 @@ struct lock;
 void lock_init(struct lock *);
 
 
-
+//prototypes
 void halt(void);
 void exit(int);
 pid_t exec(const char *cmd_line);
-//int write(int fd, const void *buffer, unsigned size)
+int wait(pid_t pid);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
+int open(const char *file);
+int filesize(int fd);
+int read(int fd, const void *buffer, unsigned size); 
+int write(int fd, const void *buffer, unsigned size);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 
 
 static void syscall_handler (struct intr_frame *);
@@ -103,13 +112,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
-	/*
-	int fd = *((int*)f->esp + 1);
-	void* buffer = (void*)(*((int*)f->esp + 2));
-	unsigned size = *((unsigned*)f->esp + 3);
 	
-	f->eax = read(fd, buffer, size);
-	*/
+	int fd_read = *((int*)f->esp + 1);
+	void* buffer_read = (void*)(*((int*)f->esp + 2));
+	unsigned size_read = *((unsigned*)f->esp + 3);
+	
+	f->eax = read(fd_read, buffer_read, size_read);
+	
 	break;
 
 	case SYS_WRITE:
@@ -126,10 +135,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_SEEK:
 	printf("SYSTEM CALL: Seek is being executed \n");
+	int fd_seek = *((int*)f->esp + 1);
 	break;
 
 	case SYS_TELL:
 	printf("SYSTEM CALL: Tell is being executed \n");
+	int fd_tell = *((int*)f->esp + 1);
+	f->eax = tell(fd_tell);
 	break;
 
 	case SYS_CLOSE:
@@ -191,12 +203,21 @@ void lock_release (struct lock *);
  
 }
 
-/*
-int read(int fd, const void *buffer, unsigned size){
-if
-input_getc();
+//needs to be fix
+int read(int fd_read, const void *buffer_read, unsigned size_read){
+
+if(fd_read == 0){
+buffer_read=input_getc();
 }
-*/
+else{
+void lock_acquire (struct lock *);
+file_read(/*->file*/fd_read,buffer_read,size_read);
+void lock_release (struct lock *);
+}
+
+
+}
+
 
 int write(int fd, const void *buffer, unsigned size){
 // writes to the console
@@ -216,7 +237,12 @@ void lock_release (struct lock *);
 void seek(int fd, unsigned position){
 }
 
-unsigned tell(int fd){}
+unsigned tell(int fd){
+/*
+if(){
+file_tell (struct file *);
+}*/
+}
 
 void close (int fd){}
 
