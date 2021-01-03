@@ -6,7 +6,9 @@
 //added includes
 #include "threads/synch.h"
 #include "filesys/file.h"
+#include "filesys/filesys.h"
 #include "devices/input.h"
+#include "process.h"
 
 typedef int pid_t;
 
@@ -69,7 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	char cmd_line = file_name;
         printf("%c \n",cmd_line);
 	
-	//exec(cmd_line);
+	f->eax = exec(cmd_line);
 	break;
 	
 	case SYS_WAIT:
@@ -79,15 +81,18 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
         
-	
+//	f->eax = create();
 	break;
 
 	case SYS_REMOVE:
 	printf("SYSTEM CALL: Remove is being executed \n");
+
+//	f->eax = remove();
 	break;
 
 	case SYS_OPEN:
 	printf("SYSTEM CALL: Open is being executed \n");
+//	f->eax = open();
 	break;
 
 	case SYS_FILESIZE:
@@ -129,6 +134,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	case SYS_CLOSE:
 	printf("SYSTEM CALL: Close is being executed \n");
+	int fd_close = *((int*)f->esp + 1);
+
+	
 	break;
 
 	default:
@@ -137,24 +145,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	}
 
 }
-/*
-// halt function terminates Pintos
-void halt(void){
-shutdown_power_off();
-}
 
-//Terminates the current user program
-void exit(int status){
-
-//returns the kernal status
-printf("%s: exit(%d)\n", thread_current()->name, status);
-	
-//then exits the thread
-thread_exit();	
-}
-*/
-/*
-//need to fix
 pid_t exec(const char *cmd_line){
 
 int pid;
@@ -167,7 +158,7 @@ pid = process_execute(cmd_line);
 
 return pid;
 }
-
+/*
 int wait (pid_t pid){
 
 }
@@ -175,19 +166,22 @@ int wait (pid_t pid){
 
 bool create(const char *file, unsigned initial_size){
 if (){
+void lock_acquire (struct lock *);
+filesys_create (file,initial_size);
+void lock_release (struct lock *);
 return true;
 }
-
+else
 return false;
 }
-
+*/
 bool remove(const char *file){
 
 }
 
 int open(const char *file){
 }
-*/
+
 
 int filesize(int fd_filesize){
 
@@ -219,7 +213,10 @@ void lock_release (struct lock *);
 
 }
 
+void seek(int fd, unsigned position){
+}
 
+unsigned tell(int fd){}
 
-
+void close (int fd){}
 
