@@ -135,14 +135,12 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-	//Note this code is no longer needed due to the exit system call
-	// please delete later
 	//-----Added code-----
 	// Creates the termination message
 	// It does this by pulling the current file name from the thread structure
 	// as well as the exit code (see thread.h for the code that does this),
 	// then prints the following message.
-	//printf("%s: exit(%d)\n", cur->name, cur->exit_code);
+	 printf("%s: exit(%d)\n", cur->name, cur->exit_code);
 	//-----End of added code-----
 }
 
