@@ -12,24 +12,24 @@
 
 typedef int pid_t;
 
-struct lock;
-void lock_init(struct lock *);
+static struct lock lock_file;
+
 
 
 //prototypes
-void halt(void);
-void exit(int);
-pid_t exec(const char *cmd_line);
-int wait(pid_t pid);
-bool create(const char *file, unsigned initial_size);
-bool remove(const char *file);
-int open(const char *file);
-int filesize(int fd);
-int read(int fd, const void *buffer, unsigned size); 
-int write(int fd, const void *buffer, unsigned size);
-void seek(int fd, unsigned position);
-unsigned tell(int fd);
-void close(int fd);
+static void halt(void);
+static void exit(int);
+static pid_t exec(const char *cmd_line);
+static int wait(pid_t pid);
+static bool create(const char *file, unsigned initial_size);
+static bool remove(const char *file);
+static int open(const char *file);
+static int filesize(int fd);
+static int read(int fd, const void *buffer, unsigned size); 
+static int write(int fd, const void *buffer, unsigned size);
+static void seek(int fd, unsigned position);
+static unsigned tell(int fd);
+static void close(int fd);
 
 
 static void syscall_handler (struct intr_frame *);
@@ -38,6 +38,8 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+
+  lock_init(&lock_file);
 }
 
 
@@ -89,19 +91,21 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
-        
-//	f->eax = create();
+      	const char *file;
+	unsigned initial_size = 1;
+	f->eax = create(file, initial_size);
 	break;
 
 	case SYS_REMOVE:
 	printf("SYSTEM CALL: Remove is being executed \n");
-
-//	f->eax = remove();
+	//const char *file;
+	//f->eax = remove(file);
 	break;
 
 	case SYS_OPEN:
 	printf("SYSTEM CALL: Open is being executed \n");
-//	f->eax = open();
+	//const char *file;
+	//f->eax = open(file);
 	break;
 
 	case SYS_FILESIZE:
@@ -174,19 +178,19 @@ return pid;
 int wait (pid_t pid){
 
 }
-
+*/
 
 bool create(const char *file, unsigned initial_size){
-if (){
-void lock_acquire (struct lock *);
+if (file){
+lock_acquire (&lock_file);
 filesys_create (file,initial_size);
-void lock_release (struct lock *);
+lock_release (&lock_file);
 return true;
 }
 else
 return false;
 }
-*/
+
 bool remove(const char *file){
 
 }
@@ -197,9 +201,9 @@ int open(const char *file){
 
 int filesize(int fd_filesize){
 
-void lock_acquire (struct lock *);
+lock_acquire (&lock_file);
 file_length (fd_filesize);
-void lock_release (struct lock *);
+lock_release (&lock_file);
  
 }
 
@@ -210,9 +214,9 @@ if(fd_read == 0){
 buffer_read=input_getc();
 }
 else{
-void lock_acquire (struct lock *);
+lock_acquire (&lock_file);
 file_read(/*->file*/fd_read,buffer_read,size_read);
-void lock_release (struct lock *);
+lock_release (&lock_file);
 }
 
 
@@ -227,9 +231,10 @@ printf("\n");
 }
 // writes to the given file (needs more work)
 else{
-void lock_acquire (struct lock *);
+
+lock_acquire (&lock_file);
 file_write(/*->file*/fd,buffer,size);
-void lock_release (struct lock *);
+lock_release (&lock_file);
 }
 
 }
