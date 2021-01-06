@@ -4,17 +4,26 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 //added includes
+#include "devices/shutdown.h"
+#include "devices/input.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
-#include "devices/input.h"
 #include "process.h"
 
 typedef int pid_t;
 
 static struct lock lock_file;
 
-
+/*
+struct file_in_use
+{
+  struct file * fp;
+  int fd;
+  struct list_elem elem;
+};
+*/
 
 //prototypes
 static void halt(void);
@@ -32,22 +41,50 @@ static unsigned tell(int fd);
 static void close(int fd);
 
 
+
+
+//Structures
 static void syscall_handler (struct intr_frame *);
+//struct file_in_use * get_file(int);
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 
+  //initlises the lock, 
   lock_init(&lock_file);
 }
 
+//used to exit the current thread if the user address is invalid
+void exit_invalid(){
+  thread_current()->exit_code = -1;
+  thread_exit();
+}
+
+//Check to see if the user address is valid
+void verify_validity_of_address(int user_address){
+  if (user_address==NULL){
+	exit_invalid();
+  }
+  if(!is_user_vaddr(user_address)) {
+	exit_invalid();
+  }
+  if(!is_user_vaddr(user_address+4)) {
+	exit_invalid();
+  }
+  if(!pagedir_get_page(thread_current()->pagedir,user_address)) {
+	exit_invalid();
+  }
+}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   
+  int user_address = f->esp;
+
   int system_call_number = *((int*)f->esp); // gets the system call code
   int parameter = *((int*)f->esp+4); // gets the system parameters
 
@@ -61,7 +98,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	shutdown_power_off();
 	break;
 
-	/* Terminates the current user program, whilst returning the kernal status */
+	//Terminates the current user program, whilst returning the kernal status
 	case SYS_EXIT:
 	printf("SYSTEM CALL: Exit is being executed \n");
 	
@@ -74,46 +111,57 @@ syscall_handler (struct intr_frame *f UNUSED)
 	thread_exit();
 
 	break;
-   
+        
+        //Runs an executable given by the command line
 	case SYS_EXEC:
 	printf("SYSTEM CALL: Exec is being executed \n");
         
 	const char *file_name;
+	printf("%c \n",file_name);
 	char cmd_line = file_name;
         printf("%c \n",cmd_line);
 	
 	f->eax = exec(cmd_line);
 	break;
 	
+	//
 	case SYS_WAIT:
 	printf("SYSTEM CALL: Wait is being executed \n");
+
+	
+
 	break;
 	
+        //Creates a new file
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
       	const char *file;
-	unsigned initial_size = 1;
+	unsigned initial_size;
 	f->eax = create(file, initial_size);
 	break;
-
+	
+	//Removes an existing file
 	case SYS_REMOVE:
 	printf("SYSTEM CALL: Remove is being executed \n");
 	//const char *file;
 	//f->eax = remove(file);
 	break;
 
+	//Opens an existing file
 	case SYS_OPEN:
 	printf("SYSTEM CALL: Open is being executed \n");
 	//const char *file;
 	//f->eax = open(file);
 	break;
-
+	
+	//gets the size of a open file
 	case SYS_FILESIZE:
 	printf("SYSTEM CALL: File size is being executed \n");
 	int fd_filesize = *((int*)f->esp + 1);
 	f->eax = filesize(fd_filesize);
 	break;
 
+	//reads 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
 	
@@ -125,6 +173,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	break;
 
+	//writes
 	case SYS_WRITE:
 	printf("SYSTEM CALL: Write is being executed \n");
 	
@@ -151,6 +200,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_CLOSE:
 	printf("SYSTEM CALL: Close is being executed \n");
 	int fd_close = *((int*)f->esp + 1);
+	
 
 	
 	break;
@@ -181,6 +231,9 @@ int wait (pid_t pid){
 */
 
 bool create(const char *file, unsigned initial_size){
+if(file==NULL){
+return false;
+}
 if (file){
 lock_acquire (&lock_file);
 filesys_create (file,initial_size);
@@ -192,19 +245,38 @@ return false;
 }
 
 bool remove(const char *file){
-
+if(file==NULL){
+return false;
+}
+if(file){
+lock_acquire (&lock_file);
+filesys_remove(file);
+lock_release (&lock_file);
+return true;
+}
+else
+return false;
 }
 
+//needs more work
 int open(const char *file){
+struct file *f = file_open(file);
+if (file == NULL){
+return -1;
+}
+else{
+int fd;
+return fd;
+}
 }
 
 
 int filesize(int fd_filesize){
 
 lock_acquire (&lock_file);
-file_length (fd_filesize);
+int size_of_file = file_length (fd_filesize);
 lock_release (&lock_file);
- 
+return size_of_file; 
 }
 
 //needs to be fix
@@ -215,7 +287,7 @@ buffer_read=input_getc();
 }
 else{
 lock_acquire (&lock_file);
-file_read(/*->file*/fd_read,buffer_read,size_read);
+file_read(/*file*/fd_read,buffer_read,size_read);
 lock_release (&lock_file);
 }
 
@@ -224,17 +296,25 @@ lock_release (&lock_file);
 
 
 int write(int fd, const void *buffer, unsigned size){
+int bytes_written;
 // writes to the console
 if (fd ==1){
-putbuf((const char*)buffer, (unsigned ) size);
+putbuf(buffer,size);
 printf("\n");
+bytes_written = size;
+return bytes_written;
 }
 // writes to the given file (needs more work)
 else{
 
 lock_acquire (&lock_file);
-file_write(/*->file*/fd,buffer,size);
+// getting the fd of specified file
+//struct file_in_use * fd_elem = get_file(fd);
+
+//writes to file and gets the number of bytes written
+bytes_written = file_write(fd/*file*/,buffer,size);
 lock_release (&lock_file);
+return bytes_written;
 }
 
 }

@@ -108,8 +108,16 @@ process_wait (tid_t child_tid UNUSED)
 {
     // FIXME: @bgaster --- quick hack to make sure processes execute!
   for(;;) ;
-    
-  return -1;
+
+//----added code------
+// very basic yield to try and fix things
+
+while(true){
+	thread_yield();
+}  
+//-----End of added code-----
+  
+ // return -1;
 }
 
 /* Free the current process's resources. */
