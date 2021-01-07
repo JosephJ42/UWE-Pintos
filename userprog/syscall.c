@@ -11,18 +11,11 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "process.h"
+#include "threads/malloc.h"
 
 typedef int pid_t;
 
 static struct lock lock_file;
-
-
-struct file_in_use
-{
-  struct file * fp;
-  int fd;
-  struct list_elem elem;
-};
 
 
 //syscalls prototypes
@@ -269,13 +262,30 @@ return false;
 
 //needs more work
 int open(const char *file){
-struct file *f = file_open(file);
+int fd;
 if (file == NULL){
 return -1;
 }
 else{
-int fd;
-return fd;
+lock_acquire (&lock_file);
+struct file *new_file = filesys_open(file);
+lock_release (&lock_file);
+
+//creates a place in the memory for the current file in use
+struct file_in_use *get_file_in_use = malloc(sizeof(struct file_in_use));
+
+//stores the file in use in the get_file_in_use strcture
+get_file_in_use->fp = new_file;
+
+//gets the file decriptor of the current file in the current thread
+get_file_in_use->fd = thread_current()->fd;
+
+//increments the file decriptor so that when the next file is opened,
+//(in the case of the same file being opened mutiple time) the file descriptor is different  
+thread_current()->fd++;
+
+
+return get_file_in_use->fd;
 }
 }
 
