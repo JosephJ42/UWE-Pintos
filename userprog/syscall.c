@@ -16,36 +16,38 @@ typedef int pid_t;
 
 static struct lock lock_file;
 
-/*
+
 struct file_in_use
 {
   struct file * fp;
   int fd;
   struct list_elem elem;
 };
-*/
 
-//prototypes
-static void halt(void);
-static void exit(int);
-static pid_t exec(const char *cmd_line);
-static int wait(pid_t pid);
-static bool create(const char *file, unsigned initial_size);
-static bool remove(const char *file);
-static int open(const char *file);
-static int filesize(int fd);
-static int read(int fd, const void *buffer, unsigned size); 
-static int write(int fd, const void *buffer, unsigned size);
-static void seek(int fd, unsigned position);
-static unsigned tell(int fd);
-static void close(int fd);
 
+//syscalls prototypes
+void halt(void);
+void exit(int);
+pid_t exec(const char *cmd_line);
+int wait(pid_t pid);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
+int open(const char *file);
+int filesize(int fd);
+int read(int fd, const void *buffer, unsigned size); 
+int write(int fd, const void *buffer, unsigned size);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
+//Support function prototypes
+void exit_invalid(void);
+void verify_validity(int pointer);
 
 
 
 //Structures
 static void syscall_handler (struct intr_frame *);
-//struct file_in_use * get_file(int);
+struct file_in_use * get_file(int);
 
 void
 syscall_init (void) 
@@ -63,33 +65,36 @@ void exit_invalid(){
 }
 
 //Check to see if the user address is valid
-void verify_validity_of_address(int user_address){
-  if (user_address==NULL){
+void verify_validity(int pointer){
+  if (pointer==NULL){
 	exit_invalid();
   }
-  if(!is_user_vaddr(user_address)) {
+  if(!is_user_vaddr(pointer)) {
 	exit_invalid();
   }
-  if(!is_user_vaddr(user_address+4)) {
-	exit_invalid();
-  }
-  if(!pagedir_get_page(thread_current()->pagedir,user_address)) {
+  if(!pagedir_get_page(thread_current()->pagedir,pointer)) {
 	exit_invalid();
   }
 }
+
+
 
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   
-  int user_address = f->esp;
-
+  //checks if f ->esp is a valid pointer 
+  int pointer = f->esp;
+  verify_validity(pointer);
+  
+  //
   int system_call_number = *((int*)f->esp); // gets the system call code
   int parameter = *((int*)f->esp+4); // gets the system parameters
 
   printf("system_call_handler() - %d! \n", system_call_number);
   printf("perameter - %d! \n", parameter);
+
 	switch (system_call_number){
 
 	// Halts Pintos by calling the halt function, seen below
@@ -102,11 +107,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_EXIT:
 	printf("SYSTEM CALL: Exit is being executed \n");
 	
+	verify_validity(pointer+1);
+	
 	int status = *((int*)f->esp+1);
 	
 	struct thread* cur = thread_current();
 
- 	cur->exit_code = status; // or exit_code.
+ 	cur->exit_code = status;
 	
 	thread_exit();
 
@@ -116,12 +123,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_EXEC:
 	printf("SYSTEM CALL: Exec is being executed \n");
         
-	const char *file_name;
-	printf("%c \n",file_name);
-	char cmd_line = file_name;
-        printf("%c \n",cmd_line);
+
 	
-	f->eax = exec(cmd_line);
+	//f->eax = exec(cmd_line);
 	break;
 	
 	//
@@ -135,23 +139,26 @@ syscall_handler (struct intr_frame *f UNUSED)
         //Creates a new file
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
-      	const char *file;
-	unsigned initial_size;
-	f->eax = create(file, initial_size);
+      	const char file_create= (void*)(*((char *)f->esp + 1));
+	unsigned initial_size = *((unsigned*)f->esp + 2); 
+
+	f->eax = create(file_create, initial_size);
 	break;
 	
 	//Removes an existing file
 	case SYS_REMOVE:
 	printf("SYSTEM CALL: Remove is being executed \n");
-	//const char *file;
-	//f->eax = remove(file);
+	const char file_remove= (void*)(*((char *)f->esp + 1));
+	
+	f->eax = remove(file_remove);
 	break;
 
 	//Opens an existing file
 	case SYS_OPEN:
 	printf("SYSTEM CALL: Open is being executed \n");
-	//const char *file;
-	//f->eax = open(file);
+	const char file_open= (void*)(*((char *)f->esp + 1));
+	
+	f->eax = open(file_open);
 	break;
 	
 	//gets the size of a open file
@@ -230,6 +237,7 @@ int wait (pid_t pid){
 }
 */
 
+// Done, needs clean up
 bool create(const char *file, unsigned initial_size){
 if(file==NULL){
 return false;
@@ -244,6 +252,7 @@ else
 return false;
 }
 
+//Done, needs clean up
 bool remove(const char *file){
 if(file==NULL){
 return false;
@@ -320,6 +329,11 @@ return bytes_written;
 }
 
 void seek(int fd, unsigned position){
+
+
+lock_acquire (&lock_file);
+file_seek(fd,position);
+lock_release (&lock_file);
 }
 
 unsigned tell(int fd){
@@ -329,5 +343,9 @@ file_tell (struct file *);
 }*/
 }
 
-void close (int fd){}
+void close (int fd){
+lock_acquire (&lock_file);
+file_close(fd);
+lock_release (&lock_file);
+}
 
