@@ -42,6 +42,9 @@ void verify_validity(int pointer);
 static void syscall_handler (struct intr_frame *);
 struct file_in_use * get_file(int);
 
+//test remove later
+struct list open_files;
+
 void
 syscall_init (void) 
 {
@@ -49,6 +52,8 @@ syscall_init (void)
 
   //initlises the lock, 
   lock_init(&lock_file);
+
+  list_init (&open_files);
 }
 
 //used to exit the current thread if the user address is invalid
@@ -68,6 +73,20 @@ void verify_validity(int pointer){
   if(!pagedir_get_page(thread_current()->pagedir,pointer)) {
 	exit_invalid();
   }
+}
+
+// this is a test implmentation, it will be most likely removed
+struct file_in_use * get_file(int fd){
+  struct list_elem *e;
+  struct file_in_use *fd_struct; 
+  e = list_tail (&open_files);
+  while ((e = list_prev (e)) != list_head (&open_files)) 
+    {
+      fd_struct = list_entry (e, struct file_in_use, elem);
+      if (fd_struct->fd_num == fd)
+    return fd_struct;
+    }
+  return NULL;
 }
 
 
@@ -189,11 +208,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_SEEK:
 	printf("SYSTEM CALL: Seek is being executed \n");
 	int fd_seek = *((int*)f->esp + 1);
+	unsigned position = *((unsigned*)f->esp + 2);
+
+	seek(fd_seek,position);
 	break;
 
 	case SYS_TELL:
 	printf("SYSTEM CALL: Tell is being executed \n");
 	int fd_tell = *((int*)f->esp + 1);
+
 	f->eax = tell(fd_tell);
 	break;
 
@@ -201,7 +224,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	printf("SYSTEM CALL: Close is being executed \n");
 	int fd_close = *((int*)f->esp + 1);
 	
-
+	close(fd_close);
 	
 	break;
 
@@ -260,60 +283,66 @@ else
 return false;
 }
 
-//needs more work
+//Done, needs clean up
 int open(const char *file){
 int fd;
 if (file == NULL){
-return -1;
+	return -1;
 }
 else{
-lock_acquire (&lock_file);
-struct file *new_file = filesys_open(file);
-lock_release (&lock_file);
+	lock_acquire (&lock_file);
+	struct file *new_file = filesys_open(file);
+	lock_release (&lock_file);
 
-//creates a place in the memory for the current file in use
-struct file_in_use *get_file_in_use = malloc(sizeof(struct file_in_use));
+	//creates a place in the memory for the current file in use
+	struct file_in_use *get_file_in_use = malloc(sizeof(struct file_in_use));
 
-//stores the file in use in the get_file_in_use strcture
-get_file_in_use->fp = new_file;
+	//stores the file in use in the get_file_in_use structure
+	get_file_in_use->fp = new_file;
 
-//gets the file decriptor of the current file in the current thread
-get_file_in_use->fd = thread_current()->fd;
+	//gets the file decriptor of the current file in the current thread
+	get_file_in_use->fd = thread_current()->fd;
 
-//increments the file decriptor so that when the next file is opened,
-//(in the case of the same file being opened mutiple time) the file descriptor is different  
-thread_current()->fd++;
+	//increments the file decriptor so that when the next file is opened,
+	//(in the case of the same file being opened mutiple time) the file descriptor is different  
+	thread_current()->fd++;
 
-
-return get_file_in_use->fd;
+     return get_file_in_use->fd;
+    }
 }
-}
 
-
+//Done, needs cleanup
 int filesize(int fd_filesize){
+int size_of_file;
+
+struct file_in_use * file_filesize= get_file(fd_filesize);
 
 lock_acquire (&lock_file);
-int size_of_file = file_length (fd_filesize);
+size_of_file = file_length (file_filesize->fp);
 lock_release (&lock_file);
 return size_of_file; 
 }
 
-//needs to be fix
+//Done, needs cleanup
 int read(int fd_read, const void *buffer_read, unsigned size_read){
 
 if(fd_read == 0){
 buffer_read=input_getc();
+return size_read;
 }
-else{
+else if (fd_read){
+struct file_in_use * file_being_read= get_file(fd_read);
 lock_acquire (&lock_file);
-file_read(/*file*/fd_read,buffer_read,size_read);
+file_read(file_being_read->fp,buffer_read,size_read);
 lock_release (&lock_file);
 }
-
+else {
+return -1;
+}
 
 }
 
-
+//Done, needs cleanup
 int write(int fd, const void *buffer, unsigned size){
 int bytes_written;
 // writes to the console
@@ -328,34 +357,44 @@ else{
 
 lock_acquire (&lock_file);
 // getting the fd of specified file
-//struct file_in_use * fd_elem = get_file(fd);
+struct file_in_use * file_being_written= get_file(fd);
 
 //writes to file and gets the number of bytes written
-bytes_written = file_write(fd/*file*/,buffer,size);
+bytes_written = file_write(file_being_written->fp,buffer,size);
 lock_release (&lock_file);
 return bytes_written;
 }
 
 }
 
+//Done, needs cleanup
 void seek(int fd, unsigned position){
-
+struct file_in_use * file_being_seeked= get_file(fd);
 
 lock_acquire (&lock_file);
-file_seek(fd,position);
+file_seek(file_being_seeked->fp,position);
 lock_release (&lock_file);
 }
-
+//Done, needs cleanup
 unsigned tell(int fd){
-/*
-if(){
-file_tell (struct file *);
-}*/
+int position_of_file;
+struct file_in_use * file_being_told= get_file(fd);
+if(file_being_told){
+lock_acquire (&lock_file);
+position_of_file=file_tell(file_being_told->fp);
+lock_release (&lock_file);
+return position_of_file;
+}
+else{
+return -1;
+}
 }
 
+//Done, needs cleanup
 void close (int fd){
+struct file_in_use * file_being_closed= get_file(fd);
 lock_acquire (&lock_file);
-file_close(fd);
+file_close(file_being_closed->fp);
 lock_release (&lock_file);
 }
 

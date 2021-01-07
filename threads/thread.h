@@ -115,6 +115,7 @@ struct file_in_use
 {
   struct file * fp;
   int fd;
+  int fd_num;
   struct list_elem elem;
 };
 
