@@ -108,16 +108,20 @@ process_wait (tid_t child_tid UNUSED)
 {
     // FIXME: @bgaster --- quick hack to make sure processes execute!
   for(;;) ;
-
+/*
 //----added code------
 // very basic yield to try and fix things
 
 while(true){
 	thread_yield();
+//this semaphore is initialized to an acquire of 0
+//allowing the parent to become immediately block upon waiting
+ sema_down(&thread_current()->some_semaphore);
+
 }  
 //-----End of added code-----
-  
- // return -1;
+ */ 
+ return -1;
 }
 
 /* Free the current process's resources. */

@@ -32,6 +32,7 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
+
 //Support function prototypes
 void exit_invalid(void);
 void verify_validity(int pointer);
@@ -53,6 +54,7 @@ syscall_init (void)
   //initlises the lock, 
   lock_init(&lock_file);
 
+  // initilise file system for getting open files
   list_init (&open_files);
 }
 
@@ -96,8 +98,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   
-  //checks if f ->esp is a valid pointer 
-  int pointer = f->esp;
+  //checks if f ->esp is a valid pointer
+  int pointer; 
+  pointer = f->esp;
   verify_validity(pointer);
   
   //
@@ -135,9 +138,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_EXEC:
 	printf("SYSTEM CALL: Exec is being executed \n");
         
-
+	const char *cmd_line;
 	
-	//f->eax = exec(cmd_line);
+	f->eax = exec(cmd_line);
 	break;
 	
 	//
@@ -180,7 +183,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	f->eax = filesize(fd_filesize);
 	break;
 
-	//reads 
+	//reads the size from an open file 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
 	
@@ -192,7 +195,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	break;
 
-	//writes
+	//writes to the terminal/console,
+	// or writes to the to a open file, depending on the fd
 	case SYS_WRITE:
 	printf("SYSTEM CALL: Write is being executed \n");
 	
@@ -205,6 +209,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	break;
 
+	//Changes the next byte to be written too or read from
+	//in an open file to a position specified
 	case SYS_SEEK:
 	printf("SYSTEM CALL: Seek is being executed \n");
 	int fd_seek = *((int*)f->esp + 1);
@@ -213,6 +219,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	seek(fd_seek,position);
 	break;
 
+	//Returns the position of the next bytes that will be written too
+	//or read from in an open file
 	case SYS_TELL:
 	printf("SYSTEM CALL: Tell is being executed \n");
 	int fd_tell = *((int*)f->esp + 1);
@@ -220,6 +228,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	f->eax = tell(fd_tell);
 	break;
 
+	//Closes a currently open file descriptor specified
 	case SYS_CLOSE:
 	printf("SYSTEM CALL: Close is being executed \n");
 	int fd_close = *((int*)f->esp + 1);
@@ -228,6 +237,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	
 	break;
 
+	//if there are no system calls or an error has occured
+	//the current thread is exited
 	default:
 	printf("Error! no system call was implemented");
 	thread_exit();
