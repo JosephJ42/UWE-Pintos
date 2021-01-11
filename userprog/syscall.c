@@ -64,15 +64,22 @@ void exit_invalid(){
   thread_exit();
 }
 
-//Check to see if the user address is valid
+//This acts a validation for the pointers provided,
+//it checks to see if the pointer actually exists.
+//checks to see if the user address of the pointer is valid
+//and checks to see if the physical address matches
+//the corresponding user virtual address
 void verify_validity(int pointer){
   if (pointer==NULL){
+	printf ("pointer is null\n");
 	exit_invalid();
   }
   if(!is_user_vaddr(pointer)) {
+	printf ("pointer not in valid user address\n");
 	exit_invalid();
   }
   if(!pagedir_get_page(thread_current()->pagedir,pointer)) {
+	printf ("pointer not in valid physical address\n");
 	exit_invalid();
   }
 }
@@ -81,6 +88,7 @@ void verify_validity(int pointer){
 struct file_in_use * get_file(int fd){
   struct list_elem *e;
   struct file_in_use *fd_struct; 
+
   e = list_tail (&open_files);
   while ((e = list_prev (e)) != list_head (&open_files)) 
     {
@@ -146,14 +154,18 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//
 	case SYS_WAIT:
 	printf("SYSTEM CALL: Wait is being executed \n");
-
-	
-
+	/*
+	verify_validity(pointer+1);	
+	pid_t pid_wait = *((int*)f->esp+1);
+	f->eax = wait(pid_wait);
+	*/
 	break;
 	
         //Creates a new file
 	case SYS_CREATE:
 	printf("SYSTEM CALL: Create is being executed \n");
+	verify_validity(pointer+1);
+	verify_validity(pointer+2);
       	const char file_create= (void*)(*((char *)f->esp + 1));
 	unsigned initial_size = *((unsigned*)f->esp + 2); 
 
@@ -163,6 +175,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//Removes an existing file
 	case SYS_REMOVE:
 	printf("SYSTEM CALL: Remove is being executed \n");
+	verify_validity(pointer+1);
 	const char file_remove= (void*)(*((char *)f->esp + 1));
 	
 	f->eax = remove(file_remove);
@@ -171,6 +184,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//Opens an existing file
 	case SYS_OPEN:
 	printf("SYSTEM CALL: Open is being executed \n");
+	verify_validity(pointer+1);
 	const char file_open= (void*)(*((char *)f->esp + 1));
 	
 	f->eax = open(file_open);
@@ -179,6 +193,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//gets the size of a open file
 	case SYS_FILESIZE:
 	printf("SYSTEM CALL: File size is being executed \n");
+	verify_validity(pointer+1);
 	int fd_filesize = *((int*)f->esp + 1);
 	f->eax = filesize(fd_filesize);
 	break;
@@ -186,7 +201,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//reads the size from an open file 
 	case SYS_READ:
 	printf("SYSTEM CALL: Read is being executed \n");
-	
+	verify_validity(pointer+1);
+	verify_validity(pointer+2);
+	verify_validity(pointer+3);
 	int fd_read = *((int*)f->esp + 1);
 	void* buffer_read = (void*)(*((int*)f->esp + 2));
 	unsigned size_read = *((unsigned*)f->esp + 3);
@@ -199,7 +216,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 	// or writes to the to a open file, depending on the fd
 	case SYS_WRITE:
 	printf("SYSTEM CALL: Write is being executed \n");
-	
+	verify_validity(pointer+1);
+	verify_validity(pointer+2);
+	verify_validity(pointer+3);
+
 	int fd = *((int*)f->esp + 1);
 	void* buffer = (void*)(*((int*)f->esp + 2));
 	unsigned size = *((unsigned*)f->esp + 3);
@@ -213,6 +233,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//in an open file to a position specified
 	case SYS_SEEK:
 	printf("SYSTEM CALL: Seek is being executed \n");
+	verify_validity(pointer+1);
+	verify_validity(pointer+2);
+	
 	int fd_seek = *((int*)f->esp + 1);
 	unsigned position = *((unsigned*)f->esp + 2);
 
@@ -223,6 +246,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//or read from in an open file
 	case SYS_TELL:
 	printf("SYSTEM CALL: Tell is being executed \n");
+	verify_validity(pointer+1);
 	int fd_tell = *((int*)f->esp + 1);
 
 	f->eax = tell(fd_tell);
@@ -231,6 +255,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	//Closes a currently open file descriptor specified
 	case SYS_CLOSE:
 	printf("SYSTEM CALL: Close is being executed \n");
+	verify_validity(pointer+1);
 	int fd_close = *((int*)f->esp + 1);
 	
 	close(fd_close);
@@ -247,13 +272,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 pid_t exec(const char *cmd_line){
-
 int pid;
-
-if (cmd_line == NULL){ // if the program cannot load or run 
+//checks that the command 
+if (cmd_line == NULL){ 
     return -1;
 }
 
+//uses the process_execute function in process.c
+//to execute the executeable and its arguments
+//returning the new processes id (its pid)
 pid = process_execute(cmd_line);
 
 return pid;
@@ -261,42 +288,54 @@ return pid;
 /*
 int wait (pid_t pid){
 
+process_wait(pid_wait);
+
+return ;
 }
 */
 
 // Done, needs clean up
 bool create(const char *file, unsigned initial_size){
+//checks to see if the the file exits
 if(file==NULL){
 return false;
 }
+//if so does the required locks to prevent other processes
+//accessing the file whilst it's being made
 if (file){
 lock_acquire (&lock_file);
 filesys_create (file,initial_size);
 lock_release (&lock_file);
 return true;
 }
+// if something else goes wrong, return false
 else
 return false;
 }
 
 //Done, needs clean up
 bool remove(const char *file){
+//checks to see if the the file exits
 if(file==NULL){
 return false;
 }
+//if so, puts locks in place to prevent other process acessing the file
+//whilst it's being removed.
 if(file){
 lock_acquire (&lock_file);
 filesys_remove(file);
 lock_release (&lock_file);
 return true;
 }
+// if something else goes wrong, return false
 else
 return false;
 }
 
 //Done, needs clean up
 int open(const char *file){
-int fd;
+//int fd;
+//checks the file exists
 if (file == NULL){
 	return -1;
 }
@@ -318,6 +357,7 @@ else{
 	//(in the case of the same file being opened mutiple time) the file descriptor is different  
 	thread_current()->fd++;
 
+     //then returns the file descripter of the current file being used in the current thread
      return get_file_in_use->fd;
     }
 }
@@ -326,8 +366,11 @@ else{
 int filesize(int fd_filesize){
 int size_of_file;
 
+//gets the file that is needed based on the fd stored in fd_filesize
 struct file_in_use * file_filesize= get_file(fd_filesize);
 
+//puts the appropriate lock in place,
+//and gets the size, in bytes, of the requested file
 lock_acquire (&lock_file);
 size_of_file = file_length (file_filesize->fp);
 lock_release (&lock_file);
@@ -337,16 +380,20 @@ return size_of_file;
 //Done, needs cleanup
 int read(int fd_read, const void *buffer_read, unsigned size_read){
 
+//reads from keyborad input
 if(fd_read == 0){
 buffer_read=input_getc();
 return size_read;
 }
+//
 else if (fd_read){
+//
 struct file_in_use * file_being_read= get_file(fd_read);
 lock_acquire (&lock_file);
 file_read(file_being_read->fp,buffer_read,size_read);
 lock_release (&lock_file);
 }
+//
 else {
 return -1;
 }
@@ -363,9 +410,8 @@ printf("\n");
 bytes_written = size;
 return bytes_written;
 }
-// writes to the given file (needs more work)
 else{
-
+// writes to the given file (needs more work)
 lock_acquire (&lock_file);
 // getting the fd of specified file
 struct file_in_use * file_being_written= get_file(fd);
@@ -375,7 +421,6 @@ bytes_written = file_write(file_being_written->fp,buffer,size);
 lock_release (&lock_file);
 return bytes_written;
 }
-
 }
 
 //Done, needs cleanup
@@ -386,6 +431,7 @@ lock_acquire (&lock_file);
 file_seek(file_being_seeked->fp,position);
 lock_release (&lock_file);
 }
+
 //Done, needs cleanup
 unsigned tell(int fd){
 int position_of_file;
