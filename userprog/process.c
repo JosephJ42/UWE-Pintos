@@ -517,31 +517,43 @@ setup_stack (void **esp, char **argv, int argc) // added the following paramater
         *esp = PHYS_BASE;
 
 //-----Added code---------
-//
-    int i = argc;
+//The following pushed each arguments
+//passed from the command line onto the stack 
 
-    uint32_t * arr[argc];
+    int i = argc;
+    uint32_t * arr_address[argc];
+    
+    //This writes the arguments in a reverse order to the stack by
+    //decrementing through the copy (i)of the argument counter (argc)
+    //then allocating the corresponding argument vector to the stack  
     while(--i >= 0){
       *esp = *esp - (strlen(argv[i])+1)*sizeof(char);
-          printf("argv[%d]: %s\n", i, argv[i]);
-      arr[i] = (uint32_t *)*esp;
+      printf("argv[%d]: %s\n", i, argv[i]);
+      arr_address[i] = (uint32_t *)*esp;
       memcpy(*esp, argv[i], strlen(argv[i])+1);
     }
 
-    *esp = *esp - 4;
+    //handles the last null on the stack
+    *esp -= 4;
     (*(int *)(*esp)) = 0;
+    
+    //deals with the address pointer for each argument 
     i = argc;
-
     while(--i >= 0){
-      *esp = *esp - 4;
-      (*(uint32_t **)(*esp)) = arr[i];
+      *esp -= 4;
+      (*(uint32_t **)(*esp)) = arr_address[i];
     }
 
-    *esp = *esp - 4;
+    // sets up the address of argv
+    *esp -= 4;
     (*(uintptr_t **)(*esp)) = (*esp+4);
-    *esp = *esp - 4;
+    
+    //writes the number of arguments, spanning over 4 bytes 
+    *esp -= 4;
     *(int *)(*esp) = argc;
-    *esp = *esp - 4;
+
+    //sets up the return address as a NULL
+    *esp -= 4;
     (*(int *)(*esp)) = 0;
 //-----End of added code------
 
