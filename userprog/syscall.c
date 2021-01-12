@@ -334,9 +334,10 @@ return false;
 
 //Done, needs clean up
 int open(const char *file){
-//int fd;
+int fd_open;
 //checks the file exists
 if (file == NULL){
+	printf("fail \n");
 	return -1;
 }
 else{
@@ -358,7 +359,10 @@ else{
 	thread_current()->fd++;
 
      //then returns the file descripter of the current file being used in the current thread
-     return get_file_in_use->fd;
+	fd_open=get_file_in_use->fd;
+	printf("success \n");     
+	printf("%d \n",fd_open);
+     return fd_open;
     }
 }
 
