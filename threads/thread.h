@@ -107,15 +107,19 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-
+   //handling the fd for a open file on the current thread
    int fd;
+ 
   };
 
+
+//File structure used to get files that are currently being used
+//in system calls
 struct file_in_use
 {
-  struct file * fp;
-  int fd;
   int fd_num;
+  int fd;
+  struct file* fp;
   struct list_elem elem;
 };
 
