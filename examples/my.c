@@ -6,17 +6,19 @@ main (void)
 {
     //printf("Hello, World\n");
 	//halt();
-	exit(0);
+	//exit(0);
 	//exec();
 	//wait();
-	//create("file", 4);
-	//remove("file");
-	//open("file");
-	//filesize();
-	//read();
-	//write();
-	//seek();
-	//tell();
-	//close();
+	const char *file;
+	file = "file";
+	create(file,4);
+	//remove(file);
+	open(file);
+	//filesize(1);
+	//read(1);
+	//write(1);
+	//seek(1);
+	//tell(1);
+	//close(4);
     return EXIT_SUCCESS;
 }
