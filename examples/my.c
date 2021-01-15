@@ -13,7 +13,7 @@ main (void)
 	create(file,28);
 	//remove(file);
 	open(file);
-	//filesize(1);
+	filesize(2);
 	//read(1);
 	//write(1);
 	//seek(1);
