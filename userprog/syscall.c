@@ -109,7 +109,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   //checks if f ->esp is a valid pointer
   int pointer; 
   pointer = f->esp;
-  verify_validity(pointer);
+  verify_validity((void*)pointer);
   
   //
   int system_call_number = *((int*)f->esp); // gets the system call code
@@ -164,19 +164,26 @@ syscall_handler (struct intr_frame *f UNUSED)
         //Creates a new file
 	case SYS_CREATE:
 		printf("SYSTEM CALL: Create is being executed \n");
-		verify_validity(pointer+1);
-		verify_validity(pointer+2);
-      		const char file_create= (void*)(*((char *)f->esp + 1));
-		unsigned initial_size = *((unsigned*)f->esp + 2); 
+		//verify_validity(pointer+1);
+		//verify_validity(pointer+2);
+      		
+		const char* file= ((char*) *((int*)pointer + 1));
+		
+		unsigned initial_size = *((unsigned*)pointer + 2);
 
-		f->eax = create(file_create, initial_size);
+		//hex_dump(pointer, pointer, pointer-12,true);
+
+		/*const char *file = "test";
+		int initial_size = 4; */
+
+		f->eax = create(file, initial_size);
 	break;
 	
 	//Removes an existing file
 	case SYS_REMOVE:
 		printf("SYSTEM CALL: Remove is being executed \n");
 		verify_validity(pointer+1);
-		const char file_remove= (void*)(*((char *)f->esp + 1));
+		const char *file_remove= ((char*) *((int*)pointer + 1));;
 	
 		f->eax = remove(file_remove);
 	break;
@@ -185,7 +192,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_OPEN:
 		printf("SYSTEM CALL: Open is being executed \n");
 		verify_validity(pointer+1);
-		const char file_open= (void*)(*((char *)f->esp + 1));
+		const char *file_open= ((char*) *((int*)pointer + 1));
 	
 		f->eax = open(file_open);
 	break;
@@ -297,12 +304,12 @@ return ;
 
 // Done, needs clean up
 bool create(const char *file, unsigned initial_size){
+//file = "Test File";
 //debugging
-file = "Test file";
-printf("File -%s- is present \n", file);
-printf("File start size -%d-\n", initial_size);
+printf("File %s is present \n", file);
+printf("File start size %d\n", initial_size);
 
-//checks to see if the the file exits
+//checks to see if the the file exits, works
 if(file==NULL){
 printf("create fail \n");
 return false;
@@ -322,21 +329,20 @@ return false;
 }
 
 //Done, needs clean up
-bool remove(const char *file){
+bool remove(const char *file_remove){
 //debugging
-file = "Test file";
-printf("File -%s- is present \n", file);
+printf("File -%s- is present \n", file_remove);
 
 //checks to see if the the file exits
-if(file==NULL){
+if(file_remove==NULL){
 printf("remove fail \n");
 	return false;
 }
 //if so, puts locks in place to prevent other process acessing the file
 //whilst it's being removed.
-if(file){
+if(file_remove){
 	lock_acquire (&lock_file);
-	filesys_remove(file);
+	filesys_remove(file_remove);
 	lock_release (&lock_file);
 	printf("remove works \n");
 	return true;
@@ -347,21 +353,21 @@ else
 }
 
 //Done, needs clean up
-int open(const char *file){
+int open(const char *file_open){
 int fd_open;
 //debugging
-file = "Test file";
-printf("File -%s- is present \n", file);
+
+printf("File -%s- is present \n", file_open);
 
 //checks the file exists
-if (file == NULL){
+if (file_open == NULL){
 	printf("No file present of this name \n");
 	return -1;
 }
 else{ //After testing Not working properly 
 
 	lock_acquire (&lock_file);
-	struct file *new_file = filesys_open(file);
+	struct file *new_file = filesys_open(file_open);
 	lock_release (&lock_file);
 
 	//creates a place in the memory for the current file in use
