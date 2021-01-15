@@ -107,8 +107,12 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-   //handling the fd for a open file on the current thread
-   int fd;
+    //used to assist in setting new file descriptors for new files
+    int current_fd;
+
+    //test
+    // List of open files with (fd) -> (file *) mapping 
+    struct list file_list;
  
   };
 

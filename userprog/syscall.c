@@ -202,7 +202,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		printf("SYSTEM CALL: File size is being executed \n");
 		verify_validity(pointer+1);
 
-		int fd_filesize = *((int*)f->esp + 1);
+		int fd_filesize = *((int*)pointer + 1);
 
 		f->eax = filesize(fd_filesize);
 	break;
@@ -214,9 +214,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 		verify_validity(pointer+2);
 		verify_validity(pointer+3);
 
-		int fd_read = *((int*)f->esp + 1);
-		void* buffer_read = (void*)(*((int*)f->esp + 2));
-		unsigned size_read = *((unsigned*)f->esp + 3);
+		int fd_read = *((int*)pointer + 1);
+		void* buffer_read = (void*)(*((int*)pointer + 2));
+		unsigned size_read = *((unsigned*)pointer + 3);
 	
 		f->eax = read(fd_read, buffer_read, size_read);
 	break;
@@ -229,9 +229,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 		verify_validity(pointer+2);
 		verify_validity(pointer+3);
 
-		int fd = *((int*)f->esp + 1);
-		void* buffer = (void*)(*((int*)f->esp + 2));
-		unsigned size = *((unsigned*)f->esp + 3);
+		int fd = *((int*)pointer + 1);
+		void* buffer = (void*)(*((int*)pointer + 2));
+		unsigned size = *((unsigned*)pointer + 3);
 		
 		f->eax = write(fd,buffer,size);
 	break;
@@ -243,8 +243,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 		verify_validity(pointer+1);
 		verify_validity(pointer+2);
 	
-		int fd_seek = *((int*)f->esp + 1);
-		unsigned position = *((unsigned*)f->esp + 2);
+		int fd_seek = *((int*)pointer + 1);
+		unsigned position = *((unsigned*)pointer + 2);
 
 		seek(fd_seek,position);
 	break;
@@ -255,7 +255,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		printf("SYSTEM CALL: Tell is being executed \n");
 		verify_validity(pointer+1);
 
-		int fd_tell = *((int*)f->esp + 1);
+		int fd_tell = *((int*)pointer + 1);
 
 		f->eax = tell(fd_tell);
 	break;
@@ -265,7 +265,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		printf("SYSTEM CALL: Close is being executed \n");
 		verify_validity(pointer+1);
 
-		int fd_close = *((int*)f->esp + 1);
+		int fd_close = *((int*)pointer+ 1);
 	
 		close(fd_close);
 	break;
@@ -304,7 +304,7 @@ return ;
 
 // Done, needs clean up
 bool create(const char *file, unsigned initial_size){
-//file = "Test File";
+
 //debugging
 printf("File %s is present \n", file);
 printf("File start size %d\n", initial_size);
@@ -314,6 +314,7 @@ if(file==NULL){
 printf("create fail \n");
 return false;
 }
+
 //if so does the required locks to prevent other processes
 //accessing the file whilst it's being made
 if (file){
@@ -323,6 +324,7 @@ lock_release (&lock_file);
 printf("create works \n");
 return true;
 }
+
 // if something else goes wrong, return false
 else
 return false;
@@ -338,6 +340,7 @@ if(file_remove==NULL){
 printf("remove fail \n");
 	return false;
 }
+
 //if so, puts locks in place to prevent other process acessing the file
 //whilst it's being removed.
 if(file_remove){
@@ -347,6 +350,7 @@ if(file_remove){
 	printf("remove works \n");
 	return true;
 }
+
 // if something else goes wrong, return false
 else
 	return false;
@@ -354,6 +358,7 @@ else
 
 //Done, needs clean up
 int open(const char *file_open){
+
 int fd_open;
 //debugging
 
@@ -373,20 +378,35 @@ else{ //After testing Not working properly
 	//creates a place in the memory for the current file in use
 	struct file_in_use *get_file_in_use = malloc(sizeof(struct file_in_use));
 	
-	//stores the file in use in the get_file_in_use structure
-	get_file_in_use->fp = new_file;
+        // bit of a jury rig fix later 
+  	 get_file_in_use->fd = ++thread_current()->current_fd +1;
+ 	 get_file_in_use->fp = new_file;
+  
+ 	 fd_open = get_file_in_use->fd;
 
-	//gets the file decriptor of the current file in the current thread
-	//increments the file decriptor so that when the next file is opened,
-	//(in the case of the same file being opened mutiple time) the file descriptor is different 
-	get_file_in_use->fd = thread_current()->fd++;
+//Redundent now, keep just in case, remove on cleanup
+/*
+	//stores the file in use in the get_file_in_use structure
+    	get_file_in_use->fp = new_file;
+
+    	//gets the file decriptor of the current file in the current thread
+    	//increments the file decriptor so that when the next file is opened,
+    	//(in the case of the same file being opened mutiple time) the file descriptor is different 
+    	get_file_in_use->fd = thread_current()->current_fd++;
 
         //then returns the file descripter of the current file being used in the current thread
-	fd_open=get_file_in_use->fd;
+    	fd_open= get_file_in_use->fd;
 
-	//debugging
-       // list_push_back(&thread_current()->files, &get_file_in_use->elem);
+    	//debugging
+        //list_push_back(&thread_current()->file_list, &get_file_in_use->elem);
+
+  	struct file_desc * fd_elem = malloc (sizeof(struct file_desc));
+  	fd_elem->fd = ++thread_current()->fd_count;
+  	fd_elem->fp = fp;
+  	list_push_front(&thread_current()->file_list,&fd_elem->elem);
   
+  	return fd_elem->fd;
+  */
 	printf("success \n");     
 	printf("fd = %d \n",fd_open);
 
@@ -396,11 +416,11 @@ else{ //After testing Not working properly
 
 //Done, needs cleanup
 int filesize(int fd_filesize){
- int size_of_file;
+int size_of_file;
 
 	//gets the file that is needed based on the fd stored in fd_filesize
 	struct file_in_use * file_filesize= get_file(fd_filesize);
-
+	printf("File -%s- is present \n", file_filesize->fp);
 	//puts the appropriate lock in place,
 	//and gets the size, in bytes, of the requested file
 	lock_acquire (&lock_file);
