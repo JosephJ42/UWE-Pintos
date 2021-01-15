@@ -9,9 +9,8 @@ main (void)
 	//exit(0);
 	//exec();
 	//wait();
-	const char *file;
-	file = "file";
-	create(file,4);
+	char *file = "Test File";
+	create(file,28);
 	//remove(file);
 	open(file);
 	//filesize(1);
