@@ -41,7 +41,10 @@ void verify_validity(int pointer);
 
 //Structures
 static void syscall_handler (struct intr_frame *);
+
+
 struct file_in_use * get_file(int);
+struct list file_list;
 
 //test remove later
 struct list open_files;
@@ -55,7 +58,7 @@ syscall_init (void)
   lock_init(&lock_file);
 
   // initilise file system for getting open files
-  list_init (&open_files);
+  list_init(&file_list);
 }
 
 //used to exit the current thread if the user address is invalid
@@ -84,20 +87,25 @@ void verify_validity(int pointer){
   }
 }
 
-// this is a test implmentation, it will be most likely removed
+// Used to navigate through the file list of the current thread
+// returning the relevent file based on the fd provided
 struct file_in_use * get_file(int fd){
-  struct list_elem *e;
-  struct file_in_use *fd_struct; 
 
-  e = list_tail (&open_files);
-  while ((e = list_prev (e)) != list_head (&open_files)) 
+  struct list_elem *e;
+  
+  for (e = list_begin(&file_list); e != list_end(&file_list); e = list_next(e) ) 
     {
-      fd_struct = list_entry (e, struct file_in_use, elem);
-      if (fd_struct->fd_num == fd)
-    return fd_struct;
+     struct file_in_use * get_file_in_use = list_entry(e, struct file_in_use, file_element);
+      
+      if (get_file_in_use->fd == fd){
+      return get_file_in_use;
+      }
     }
-  return NULL;
+printf("No file present with that fd");
+return NULL;
 }
+
+
 
 
 
@@ -111,7 +119,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   pointer = f->esp;
   verify_validity((void*)pointer);
   
-  //
   int system_call_number = *((int*)f->esp); // gets the system call code
   int parameter = *((int*)f->esp+4); // gets the system parameters
 
@@ -372,41 +379,22 @@ if (file_open == NULL){
 else{ //After testing Not working properly 
 
 	lock_acquire (&lock_file);
-	struct file *new_file = filesys_open(file_open);
+	struct file * new_file = filesys_open(file_open);
 	lock_release (&lock_file);
 
 	//creates a place in the memory for the current file in use
-	struct file_in_use *get_file_in_use = malloc(sizeof(struct file_in_use));
+	struct file_in_use * get_file_in_use = malloc(sizeof(struct file_in_use));
 	
         // bit of a jury rig fix later 
-  	 get_file_in_use->fd = ++thread_current()->current_fd +1;
- 	 get_file_in_use->fp = new_file;
-  
- 	 fd_open = get_file_in_use->fd;
+  	get_file_in_use->fd = ++thread_current()->current_fd +1;
+ 	get_file_in_use->fp = new_file;
+ 	
+	//this is breaking the code, but is need to push the relvent data into lists
+	//so that the system can later find the relevent files using fd 	
+	list_push_back(&file_list, &(get_file_in_use->file_element));
+	 
+	fd_open = get_file_in_use->fd;
 
-//Redundent now, keep just in case, remove on cleanup
-/*
-	//stores the file in use in the get_file_in_use structure
-    	get_file_in_use->fp = new_file;
-
-    	//gets the file decriptor of the current file in the current thread
-    	//increments the file decriptor so that when the next file is opened,
-    	//(in the case of the same file being opened mutiple time) the file descriptor is different 
-    	get_file_in_use->fd = thread_current()->current_fd++;
-
-        //then returns the file descripter of the current file being used in the current thread
-    	fd_open= get_file_in_use->fd;
-
-    	//debugging
-        //list_push_back(&thread_current()->file_list, &get_file_in_use->elem);
-
-  	struct file_desc * fd_elem = malloc (sizeof(struct file_desc));
-  	fd_elem->fd = ++thread_current()->fd_count;
-  	fd_elem->fp = fp;
-  	list_push_front(&thread_current()->file_list,&fd_elem->elem);
-  
-  	return fd_elem->fd;
-  */
 	printf("success \n");     
 	printf("fd = %d \n",fd_open);
 
@@ -420,13 +408,14 @@ int size_of_file;
 
 	//gets the file that is needed based on the fd stored in fd_filesize
 	struct file_in_use * file_filesize= get_file(fd_filesize);
-	printf("File -%s- is present \n", file_filesize->fp);
+	
 	//puts the appropriate lock in place,
 	//and gets the size, in bytes, of the requested file
 	lock_acquire (&lock_file);
 	size_of_file = file_length (file_filesize->fp);
 	lock_release (&lock_file);
 
+	printf("size of file = %d \n",size_of_file);
  return size_of_file; 
 }
 

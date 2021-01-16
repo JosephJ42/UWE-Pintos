@@ -111,11 +111,11 @@ struct thread
     int current_fd;
 
     //test
-    // List of open files with (fd) -> (file *) mapping 
-    struct list file_list;
+    //
+    //struct file * file; 
+    //struct list file_list;
  
   };
-
 
 //File structure used to get files that are currently being used
 //in system calls
@@ -124,7 +124,7 @@ struct file_in_use
   int fd_num;
   int fd;
   struct file* fp;
-  struct list_elem elem;
+  struct list_elem file_element;
 };
 
 /* If false (default), use round-robin scheduler.
