@@ -10,14 +10,18 @@ main (void)
 	//exec();
 	//wait();
 	char *file = "Test File";
-	create(file,5);
+	create(file,10);
 	//remove(file);
 	open(file);
-	filesize(2);
-	//read(1);
-	//write(1);
-	//seek(1);
-	//tell(1);
-	//close(4);
+	//filesize(2);
+        
+        void *buffer = "Hello";
+	write(2,buffer,5);
+	void *buffer_r = "";	
+	read(2,buffer_r,5);
+	
+	//seek(2,3);
+	//tell(2);
+	//close(2);
     return EXIT_SUCCESS;
 }
