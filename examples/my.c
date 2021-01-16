@@ -10,7 +10,7 @@ main (void)
 	//exec();
 	//wait();
 	char *file = "Test File";
-	create(file,28);
+	create(file,5);
 	//remove(file);
 	open(file);
 	filesize(2);
