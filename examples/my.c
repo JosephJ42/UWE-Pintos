@@ -18,7 +18,7 @@ main (void)
         void *buffer = "Hello";
 	write(2,buffer,5);
 	void *buffer_r = "";	
-	read(2,buffer_r,5);
+	read(2,buffer_r,4);
 	
 	//seek(2,3);
 	//tell(2);
