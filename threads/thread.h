@@ -108,20 +108,13 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     //used to assist in setting new file descriptors for new files
-    int current_fd;
-
-    //test
-    //
-    //struct file * file; 
-    //struct list file_list;
- 
+    int current_fd; 
   };
 
 //File structure used to get files that are currently being used
 //in system calls
 struct file_in_use
 {
-  int fd_num;
   int fd;
   struct file* fp;
   struct list_elem file_element;

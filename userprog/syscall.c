@@ -3,7 +3,8 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-//added includes
+//Added includes which provide functions
+//for syscalls
 #include "devices/shutdown.h"
 #include "devices/input.h"
 #include "threads/synch.h"
@@ -13,12 +14,13 @@
 #include "process.h"
 #include "threads/malloc.h"
 
+//Definied the type pid_t for the exec & wait syscall 
 typedef int pid_t;
 
+//Provides a structure for the file locks
 static struct lock lock_file;
 
-
-//syscalls prototypes/casts
+//Syscalls prototypes/casts
 void halt(void);
 void exit(int);
 pid_t exec(const char *cmd_line);
@@ -27,7 +29,7 @@ bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
 int open(const char *file);
 int filesize(int fd);
-int read(int fd, const void *buffer, unsigned size); 
+int read(int fd, void *buffer, unsigned size); 
 int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
@@ -42,7 +44,6 @@ static void syscall_handler (struct intr_frame *);
 
 struct file_in_use * get_file(int);
 struct list file_list;
-
 struct list open_files;
 
 void
@@ -53,7 +54,7 @@ syscall_init (void)
   //initlises the lock, 
   lock_init(&lock_file);
 
-  // initilise file system for getting open files
+  // initilise file list for getting open files
   list_init(&file_list);
 }
 
@@ -142,6 +143,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 	break;
         
         //Runs an executable given by the command line
+	//passing any given arguments 
+	//Currently not working
 	case SYS_EXEC:
 		printf("SYSTEM CALL: Exec is being executed \n");
         
@@ -150,7 +153,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 		f->eax = exec(cmd_line);
 	break;
 	
-	//
+	//Waits for a child process pid and retrieves the processes exit code
+	//Currently not working
 	case SYS_WAIT:
 	printf("SYSTEM CALL: Wait is being executed \n");
 	/*
@@ -163,18 +167,15 @@ syscall_handler (struct intr_frame *f UNUSED)
         //Creates a new file
 	case SYS_CREATE:
 		printf("SYSTEM CALL: Create is being executed \n");
-		//verify_validity(pointer+1);
-		//verify_validity(pointer+2);
+		//Validates the argument being passed from the stack 
+		verify_validity(pointer+1);
+		verify_validity(pointer+2);
       		
+		//pulls these arguments off the stack
 		const char* file= ((char*) *((int*)pointer + 1));
-		
 		unsigned initial_size = *((unsigned*)pointer + 2);
 
-		//hex_dump(pointer, pointer, pointer-12,true);
-
-		/*const char *file = "test";
-		int initial_size = 4; */
-
+		//
 		f->eax = create(file, initial_size);
 	break;
 	
@@ -196,7 +197,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		f->eax = open(file_open);
 	break;
 	
-	//gets the size of a open file
+	//Gets the size (in bytes) of a open file
 	case SYS_FILESIZE:
 		printf("SYSTEM CALL: File size is being executed \n");
 		verify_validity(pointer+1);
@@ -206,7 +207,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 		f->eax = filesize(fd_filesize);
 	break;
 
-	//reads the size from an open file 
+	//Reads a number of bytes from a open file into the buffer
+	//based on the size provided, or if fd = 0 reads from keyborad input 
 	case SYS_READ:
 		printf("SYSTEM CALL: Read is being executed \n");
 		verify_validity(pointer+1);
@@ -220,8 +222,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 		f->eax = read(fd_read, buffer_read, size_read);
 	break;
 
-	//writes to the terminal/console,
-	// or writes to the to a open file, depending on the fd
+	//Writes to the terminal/console if fd = 0,
+	//or writes to the to a open file
 	case SYS_WRITE:
 		printf("SYSTEM CALL: Write is being executed \n");
 		verify_validity(pointer+1);
@@ -301,21 +303,22 @@ return ;
 }
 */
 
-// Done, needs clean up
+//Used by Syscall create to create a file in the Pintos file system
 bool create(const char *file, unsigned initial_size){
 
 //debugging
 printf("File %s is present \n", file);
 printf("File start size %d\n", initial_size);
 
-//checks to see if the the file exits, works
+//checks to see if the file name provide is valid
 if(file==NULL){
 printf("create fail \n");
 return false;
 }
 
 //if so does the required locks to prevent other processes
-//accessing the file whilst it's being made
+//accessing the file whilst it's being made, and creates the file
+//with an inital size of the variable "initial_size"
 if (file){
 lock_acquire (&lock_file);
 filesys_create (file,initial_size);
@@ -329,19 +332,19 @@ else
 return false;
 }
 
-//Done, needs clean up
+//Used by Syscall remove to remove a file from the Pintos file system
 bool remove(const char *file_remove){
 //debugging
 printf("File -%s- is present \n", file_remove);
 
-//checks to see if the the file exits
+//checks to see file name provided is valid
 if(file_remove==NULL){
 printf("remove fail \n");
 	return false;
 }
 
 //if so, puts locks in place to prevent other process acessing the file
-//whilst it's being removed.
+//whilst it's being removed, and removed that file
 if(file_remove){
 	lock_acquire (&lock_file);
 	filesys_remove(file_remove);
@@ -355,7 +358,7 @@ else
 	return false;
 }
 
-//Done, needs clean up
+//Used by Syscall open to open a file
 int open(const char *file_open){
 
 int fd_open;
@@ -363,12 +366,14 @@ int fd_open;
 
 printf("File -%s- is present \n", file_open);
 
-//checks the file exists
+//checks the filename provided is valid
 if (file_open == NULL){
-	printf("No file present of this name \n");
 	return -1;
 }
-else{ //Now works 
+//if so, opens that file in pintos file system and stored its file descriptor (fd) into
+//the file list, allowing for other syscalls to later access this open file
+//based on the fd
+else{
 
 	lock_acquire (&lock_file);
 	struct file * new_file = filesys_open(file_open);
@@ -377,28 +382,28 @@ else{ //Now works
 	//creates a place in the memory for the current file in use
 	struct file_in_use * get_file_in_use = malloc(sizeof(struct file_in_use));
 	
-        // bit of a jury rig fix later 
+	//Used the file_in_use structure implemented in threads.h.
+        //Provides that file with a fd (cannot be fd 0 or 1) for the open file
   	get_file_in_use->fd = ++thread_current()->current_fd +1;
  	get_file_in_use->fp = new_file;
  	
-	//this is breaking the code, but is need to push the relvent data into lists
-	//so that the system can later find the relevent files using fd 	
+	//Then places it into the file_list for the current thread	
 	list_push_back(&file_list, &(get_file_in_use->file_element));
 	 
+	//then returns the opened files fd 
 	fd_open = get_file_in_use->fd;
-
-	printf("success \n");     
+     
 	printf("fd = %d \n",fd_open);
 
      return fd_open;
     }
 }
 
-//Done, needs cleanup
+//Used by Syscall filesize to determine the size (in bytes) of the provided file
 int filesize(int fd_filesize){
 int size_of_file;
 
-	//gets the file that is needed based on the fd stored in fd_filesize
+	//gets the file that is needed based on the fd provided in fd_filesize
 	struct file_in_use * file_filesize= get_file(fd_filesize);
 	
 	//puts the appropriate lock in place,
@@ -411,38 +416,37 @@ int size_of_file;
  return size_of_file; 
 }
 
-//Done, needs cleanup
-int read(int fd_read, const void *buffer_read, unsigned size_read){
+//Used by Syscall read to read from an open file or from keyborad input
+//based on the fd
+//Not working 
+int read(int fd_read, void *buffer_read, unsigned size_read){
 
 int bytes_read;
 
  //reads from keyborad input
- if(fd_read == 0){
+if(fd_read == 0){
 	buffer_read=input_getc();
 	bytes_read = size_read;
  return bytes_read;
  }
- //
- else if (fd_read){
-	//
-	struct file_in_use * file_being_read= get_file(fd_read);
+else{
+	//Puts the appropriate locks in place, the reads a number of bytes
+	//based on "size_read", from the provided file ( based on the provided fd
+	//the placing that in the buffer, returning the number of bytes read
 	lock_acquire (&lock_file);
+	struct file_in_use * file_being_read= get_file(fd_read);
 	bytes_read = file_read(file_being_read->fp,buffer_read,size_read);
 	lock_release (&lock_file);
-
 	printf("number of bytes read = %d \n", bytes_read);
 	return bytes_read;
  }
- //
- else {
- return -1;
- }
 }
 
-//Done, needs cleanup
+//Used by Syscall write to write to an open file, using data stored in the buffer
+//writting a number of bytes based on "size" or writes to the console if fd = 1 
 int write(int fd, const void *buffer, unsigned size){
 int bytes_written;
-// writes to the console
+// writes to the console returning the number of bytes written
 if (fd ==1){
 putbuf(buffer,size);
 printf("\n");
@@ -450,12 +454,12 @@ bytes_written = size;
 return bytes_written;
 }
 else{
-// writes to the given file (needs more work)
+// writes to the given file
 lock_acquire (&lock_file);
 // getting the fd of specified file
 struct file_in_use * file_being_written= get_file(fd);
 
-//writes to file and gets the number of bytes written
+//writes to file and gets the number of bytes written, and returns the number of bytes written
 bytes_written = file_write(file_being_written->fp,buffer,size);
 lock_release (&lock_file);
 printf("number of bytes written = %d \n", bytes_written);
@@ -463,7 +467,8 @@ return bytes_written;
 }
 }
 
-//Done, needs cleanup
+//Used by Syscall seek to change the next byte to be written to
+//read from in a specified open file, to the position provided 
 void seek(int fd, unsigned position){
 struct file_in_use * file_being_seeked= get_file(fd);
 printf("position = %d \n", position);
@@ -472,7 +477,8 @@ file_seek(file_being_seeked->fp,position);
 lock_release (&lock_file);
 }
 
-//Done, needs cleanup
+//Used by Syscall tell which returns that next bytes
+//that will be written to or read from in the specified open file
 unsigned tell(int fd){
 int position_of_file;
 struct file_in_use * file_being_told= get_file(fd);
@@ -488,13 +494,15 @@ return -1;
 }
 }
 
-//Done, needs cleanup
+//Used by Syscall close, to close the open file in the current thread
+//and deallocating the assigned memory used to store it.
 void close (int fd){
 struct file_in_use * file_being_closed= get_file(fd);
 lock_acquire (&lock_file);
 file_close(file_being_closed->fp);
 lock_release (&lock_file);
-
+//removed the current file from the file list and frees up
+//the memory allocated to it in syscall open
 list_remove(&file_being_closed->file_element);
 free(file_being_closed);
 
