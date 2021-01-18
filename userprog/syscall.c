@@ -23,7 +23,7 @@ static struct lock lock_file;
 //Syscalls prototypes/casts
 void halt(void);
 void exit(int);
-pid_t exec(const char *cmd_line);
+pid_t exec(const char *cmdline);
 int wait(pid_t pid);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
@@ -108,7 +108,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   
-  //checks if f ->esp is a valid pointer
+  //checks if f->esp is a valid pointer
   int pointer; 
   pointer = f->esp;
   verify_validity((void*)pointer);
@@ -141,12 +141,16 @@ syscall_handler (struct intr_frame *f UNUSED)
         
         //Runs an executable given by the command line
 	//passing any given arguments 
-	//Currently not working
 	case SYS_EXEC:
 		printf("SYSTEM CALL: Exec is being executed \n");
-        
-		const char *cmd_line;
-		f->eax = exec(cmd_line);
+		//Validates the argument being passed from the stack         	
+		verify_validity(pointer+1);
+
+		//pulls the argument off the stack and puts it into a variable (cmdline)
+		const char *cmdline = ((char*) *((int*)pointer + 1));
+		
+		//Stores the results of the exec function into the eax register
+		f->eax = exec(cmdline);
 	break;
 	
 	//Waits for a child process pid and retrieves the processes exit code
@@ -163,7 +167,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         //Creates a new file
 	case SYS_CREATE:
 		printf("SYSTEM CALL: Create is being executed \n");
-		//Validates the argument being passed from the stack 
+		//Validates the arguments being passed from the stack 
 		verify_validity(pointer+1);
 		verify_validity(pointer+2);
       		
@@ -171,7 +175,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		const char* file= ((char*) *((int*)pointer + 1));
 		unsigned initial_size = *((unsigned*)pointer + 2);
 
-		//
+		//Stores the results of the create function into the eax register
 		f->eax = create(file, initial_size);
 	break;
 	
@@ -234,7 +238,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	break;
 
 	//Changes the next byte to be written too or read from
-	//in an open file to a position specified
+	//in an open file to the position specified in "position"
 	case SYS_SEEK:
 		printf("SYSTEM CALL: Seek is being executed \n");
 		verify_validity(pointer+1);
@@ -246,7 +250,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		seek(fd_seek,position);
 	break;
 
-	//Returns the position of the next bytes that will be written too
+	//Returns the position of the next byte that will be written too
 	//or read from in an open file
 	case SYS_TELL:
 		printf("SYSTEM CALL: Tell is being executed \n");
@@ -276,21 +280,19 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 }
 
-//Used by Syscall exec, this would have taken the
-//input from the commandline and passed it process_execute in process.c
-//to be executed. Not working  
-pid_t exec(const char *cmd_line){
+//Used by Syscall exec, this takes the input from the commandline
+//and passed it process_execute in process.c to be executed. 
+pid_t exec(const char *cmdline){
 int pid;
 	
-	//checks that the command 
-	if (cmd_line == NULL){ 
+	//checks that the command passed is valid 
+	if (cmdline == NULL){ 
     	 return -1;
 	}
-
 	//uses the process_execute function in process.c
 	//to execute the executeable and its arguments
 	//returning the new processes id (its pid)
-	pid = process_execute(cmd_line);
+	pid = process_execute(cmdline);
 
 return pid;
 }
@@ -341,7 +343,7 @@ bool remove(const char *file_remove){
 	//debugging
 	printf("File -%s- is present \n", file_remove);
 
-	//checks to see file name provided is valid
+	//checks to see if file name provided is valid
 	if(file_remove==NULL){
 	 printf("remove fail \n");
 	 return false;
@@ -384,7 +386,7 @@ int fd_open;
 	 //creates a place in the memory for the current file in use
 	 struct file_in_use * get_file_in_use = malloc(sizeof(struct file_in_use));
 	
-	 //Used the file_in_use structure implemented in threads.h.
+	 //Using the file_in_use structure implemented in threads.h.
          //Provides that file with a fd (cannot be fd 0 or 1) for the open file
   	 get_file_in_use->fd = ++thread_current()->current_fd +1;
  	 get_file_in_use->fp = new_file;
@@ -469,7 +471,7 @@ int bytes_written;
 	}
 }
 
-//Used by Syscall seek to change the next byte to be written to
+//Used by Syscall seek to change the next byte to be written to or
 //read from in a specified open file, to the position provided 
 void seek(int fd, unsigned position){
 	struct file_in_use * file_being_seeked= get_file(fd);
