@@ -45,7 +45,6 @@ static void syscall_handler (struct intr_frame *);
 //Structure and lists for getting open files
 struct file_in_use * get_file(int);
 struct list file_list;
-struct list open_files;
 
 void
 syscall_init (void) 

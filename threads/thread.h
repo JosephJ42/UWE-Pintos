@@ -108,6 +108,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     //used to assist in setting new file descriptors for new files
+    //opened in the current thread
     int current_fd; 
   };
 
