@@ -9,13 +9,13 @@ main (void)
 	//exit(0);
 	//exec("echo Test Tester Testing");
 	//wait();
-	char *file = "Test File";
+	//char *file = "Test File";
 	//create(file,10);
 	//char *file_remove;
 	//remove(file_remove);
-	open(file);
+	//open(file);
 	//filesize(2);
-        
+
         //void *buffer = "Hello";
 	//write(1,buffer,5);
 	//void *buffer_r;	
