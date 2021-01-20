@@ -369,20 +369,22 @@ int open(const char *file_open){
 int fd_open;
 	
 	//debugging
-	printf("File -%s- is present \n", file_open);
+	printf("Looking for File -%s- \n", file_open);
 
 	//checks the filename provided is valid
 	if (file_open == NULL){
 	 return -1;
 	}
-	//if so, opens that file in pintos file system and stored its file descriptor (fd) into
+
+	//if so, opens that file in the pintos file system and stored its file descriptor (fd) into
 	//the file list, allowing for other syscalls to later access this open file
 	//based on the fd
-	else{
-	 lock_acquire (&lock_file);
-	 struct file * new_file = filesys_open(file_open);
-	 lock_release (&lock_file);
-
+	lock_acquire (&lock_file);
+	struct file * new_file = filesys_open(file_open);
+	lock_release (&lock_file);
+	
+	//checks thats the file was succefully retrieved and is present 
+	if(new_file){
 	 //creates a place in the memory for the current file in use
 	 struct file_in_use * get_file_in_use = malloc(sizeof(struct file_in_use));
 	
@@ -401,6 +403,12 @@ int fd_open;
 
          return fd_open;
     	}
+	else{
+	 //if no file by that name is present, (so can't be opened) the fd is retuned as -1
+	 fd_open = -1;
+	 printf("fd = %d, that file is not present \n",fd_open);
+ 	 return fd_open;
+	}
 }
 
 //Used by Syscall filesize to determine the size (in bytes) of the provided file
